@@ -4,9 +4,8 @@ from datetime import datetime
 
 try:
     device_count = 300  # Fixed number of devices
-    tag_types = ['Temperature', 'Humidity', 'Pressure', 'CO2', 'VOC']  # Example tags
     history_years = 3
-    tag_count = len(tag_types)
+    tag_count = 50
 except Exception as e:
     print(f"Parameters error: {e}")
 
@@ -48,9 +47,9 @@ def execute_without_transaction(query):
 
 # Add drop commands before create table
 create_table_query = f'''
-DROP TABLE IF EXISTS public.values_monthly_rollup CASCADE;
-DROP TABLE IF EXISTS public.values_daily_rollup CASCADE;
 DROP TABLE IF EXISTS public."Values" CASCADE;
+DROP TABLE IF EXISTS public.values_daily_rollup CASCADE;
+DROP TABLE IF EXISTS public.values_monthly_rollup CASCADE;
 
 CREATE TABLE IF NOT EXISTS public."Values"
 (
@@ -61,8 +60,8 @@ CREATE TABLE IF NOT EXISTS public."Values"
     CONSTRAINT "PK_Values" PRIMARY KEY ("Tag", "Device", "Date")
 );
 
-PERFORM create_hypertable('"Values"', 'Date', chunk_time_interval => INTERVAL '1 month');
-PERFORM add_dimension('"Values"', 'Device', number_partitions => 4);
+ select create_hypertable('"Values"', by_range('Date', INTERVAL '1 month'));
+ select add_dimension('"Values"', 'Device', number_partitions => 4);
 '''
 execute_query(create_table_query)
 
@@ -157,7 +156,7 @@ queries = {
         COALESCE(SUM("Value"), 0.0) AS "Value"
     FROM "Values"
     WHERE "Device" = ANY ({devices_array})
-    AND "Tag" = 'Temperature'
+    AND "Tag" = 'TAG_{random.randint(0, tag_count)}'
     AND "Date" >= '2023-01-01 00:00:00'
     AND "Date" <= '2023-12-31 23:59:59'
     GROUP BY "Time"
@@ -170,7 +169,7 @@ queries = {
         COALESCE(SUM(sum_value), 0.0) AS "Value"
     FROM values_daily_rollup
     WHERE "Device" = ANY ({devices_array})
-    AND "Tag" = 'Temperature'
+    AND "Tag" = 'TAG_{random.randint(0, tag_count)}'
     AND bucket >= '2023-01-01'
     AND bucket <= '2023-12-31'
     GROUP BY bucket
@@ -183,7 +182,7 @@ queries = {
         COALESCE(SUM(sum_value), 0.0) AS "Value"
     FROM values_monthly_rollup
     WHERE "Device" = ANY ({devices_array})
-    AND "Tag" = 'Temperature'
+    AND "Tag" = 'TAG_{random.randint(0, tag_count)}'
     AND bucket >= '2023-01-01'
     AND bucket <= '2023-12-31'
     GROUP BY bucket
@@ -212,6 +211,20 @@ results = {}
 for description, query in queries.items():
     avg_time, data = benchmark_query(query, description)
     results[description] = avg_time
+
+# Add row counts before closing the connection
+count_queries = {
+    '"Values" table': 'SELECT COUNT(*) FROM "Values"',
+    'Daily rollup': 'SELECT COUNT(*) FROM values_daily_rollup',
+    'Monthly rollup': 'SELECT COUNT(*) FROM values_monthly_rollup'
+}
+
+print("\nRow Counts:")
+print("=" * 50)
+for table_name, count_query in count_queries.items():
+    cursor.execute(count_query)
+    count = cursor.fetchone()[0]
+    print(f"{table_name}: {count:,} rows")
 
 # Print summary
 print("\nPerformance Summary:")
