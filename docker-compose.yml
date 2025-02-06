@@ -1,16 +1,13 @@
 services:
   data-generator:
-    image: 'data-generator-test'
+    image: 'timescale-benchmark'
     build: .
-    container_name: data-generator
+    container_name: timescale-benchmark
     environment:
-      DEVICE_COUNT: 300
-      TAG_COUNT: 50
-      HISTORY_YEARS: 3
       CONN_STRING: "postgresql://postgres:5432/TEST?user=postgres&password=TEST!timescale"
     volumes:
       - .:/app
-    command: ["/bin/sh", "-c", "python /app/script.py"]
+    command: ["--devices", "300", "--tags", "50", "--years", "3", "--test-devices", "10"]
     depends_on:
       postgres:
         condition: service_healthy
