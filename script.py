@@ -1,6 +1,7 @@
 import psycopg2
 import os
 from datetime import datetime
+import random
 
 try:
     device_count = 300  # Fixed number of devices
@@ -135,6 +136,9 @@ def benchmark_query(query, description, iterations=3):
 test_devices = [f"'DEVICE_{i}'" for i in range(1, 11)]  # Test with 10 devices
 devices_array = f"ARRAY[{','.join(test_devices)}]"
 
+# Generate one random tag to use across all queries
+test_tag = f"TAG_{random.randint(0, tag_count)}"
+
 # Test queries
 queries = {
     "Raw Query (Daily)": f"""
@@ -143,7 +147,7 @@ queries = {
         COALESCE(SUM(t."Value"), 0.0) AS "Value"
     FROM "Values" AS t
     WHERE t."Device" = ANY ({devices_array})
-    AND t."Tag" = 'Temperature'
+    AND t."Tag" = '{test_tag}'
     AND t."Date"::timestamp >= '2023-01-01 00:00:00'
     AND t."Date"::timestamp <= '2023-12-31 23:59:59'
     GROUP BY DATE_TRUNC('day', t."Date"::timestamp)
@@ -156,7 +160,7 @@ queries = {
         COALESCE(SUM("Value"), 0.0) AS "Value"
     FROM "Values"
     WHERE "Device" = ANY ({devices_array})
-    AND "Tag" = 'TAG_{random.randint(0, tag_count)}'
+    AND "Tag" = '{test_tag}'
     AND "Date" >= '2023-01-01 00:00:00'
     AND "Date" <= '2023-12-31 23:59:59'
     GROUP BY "Time"
@@ -169,7 +173,7 @@ queries = {
         COALESCE(SUM(sum_value), 0.0) AS "Value"
     FROM values_daily_rollup
     WHERE "Device" = ANY ({devices_array})
-    AND "Tag" = 'TAG_{random.randint(0, tag_count)}'
+    AND "Tag" = '{test_tag}'
     AND bucket >= '2023-01-01'
     AND bucket <= '2023-12-31'
     GROUP BY bucket
@@ -182,7 +186,7 @@ queries = {
         COALESCE(SUM(sum_value), 0.0) AS "Value"
     FROM values_monthly_rollup
     WHERE "Device" = ANY ({devices_array})
-    AND "Tag" = 'TAG_{random.randint(0, tag_count)}'
+    AND "Tag" = '{test_tag}'
     AND bucket >= '2023-01-01'
     AND bucket <= '2023-12-31'
     GROUP BY bucket
