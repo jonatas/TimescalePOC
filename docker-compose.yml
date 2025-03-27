@@ -21,17 +21,6 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: TEST!timescale
       POSTGRES_DB: TEST
-      # Performance tuning parameters
-      max_wal_size: 8GB                     # Increased from 4GB to reduce checkpoint frequency
-      min_wal_size: 2GB                     # Increased from 1GB
-      shared_buffers: 1GB
-      effective_cache_size: 3GB
-      maintenance_work_mem: 256MB
-      checkpoint_completion_target: 0.9
-      checkpoint_timeout: '30min'           # Added to control checkpoint frequency
-      wal_buffers: '16MB'                  # Added for better WAL performance
-      random_page_cost: 1.1                # Added for better query planning
-      work_mem: '64MB'                     # Added for better query performance
     ports:
       - "5432:5432"
     healthcheck:
@@ -40,7 +29,9 @@ services:
       timeout: 10s
       retries: 10
     volumes:
-      - postgres_data:/var/lib/postgresql/data   # Changed path to standard PostgreSQL data directory
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgresql.conf:/etc/postgresql/postgresql.conf
+    command: postgres -c 'config_file=/etc/postgresql/postgresql.conf'
 
 volumes:
   postgres_data:
